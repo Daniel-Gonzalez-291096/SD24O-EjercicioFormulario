@@ -2,15 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Registro de Usuarios</title>
+    <title>Formulariost</title>
+    <style>
+        div{margin:10px;}
+    </style>
 </head>
 <body>
-    <form method="post" action="http://localhost:8000/usuarios" enctype="multipart/form-data">
-        <div>Nombre:<input type="text" name="nombre" required></div>
-        <div>Direccion:<input type="text" name="direccion" required></div>
-        <div>Fotografia:<input type="file" name="fotografia" accept="image/*" required></div>
-        <div>VIP:<input type="checkbox" name="vip"></div>
-        <div><input type="submit" value="Registrar"></div>
+    
+    <form method="post" action="http://localhost:8000/formulario" enctype="multipart/form-data"> 
+
+        <div>Nombre:<input type="text" name="nombre" /></div>
+
+        <div>Direccion:<input type="text" name="direccion"/></div>
+        
+        <div>Foto:<input type="file" name="foto"/></div>
+        
+        <div>VIP:<input type="checkbox" name="es_vip" /></div>
+    
+        <div><input type="submit" value="enviar" /></div>
     </form>
 </body>
 </html>

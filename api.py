@@ -1,42 +1,177 @@
-import uuid
-from fastapi import FastAPI, Form, UploadFile, File
-import os
+from fastapi import FastAPI, UploadFile, File, Form
+from typing import Optional
+from pydantic import BaseModel
 import shutil
+import os #Para acceder a la ruta del home
+import uuid #generar un nombre aleatorio, unico
 
-# creamos el servidor
+# creación del servidor
 app = FastAPI()
 
-# definimos la ruta para registrar los usuarios
-@app.post("/usuarios")
-async def registrar_usuario(nombre: str = Form(...), direccion: str = Form(...), vip: bool = Form(False), fotografia: UploadFile = File(...)):
-    print(f"Nombre: {nombre}")
-    print(f"Dirección: {direccion}")
-    print(f"VIP: {vip}")
-
-    # creamos las carpetas de destino para el estado vip
-    home_usuario = os.path.expanduser("~")
-    carpeta_destino = os.path.join(home_usuario, "fotos-usuarios-vip" if vip else "fotos-usuarios")
-    os.makedirs(carpeta_destino, exist_ok=True)
-
-    # guardamos la foto con un nombre unico
-    nombre_archivo = f"{uuid.uuid4()}{os.path.splitext(fotografia.filename)[1]}"
-    ruta_foto = os.path.join(carpeta_destino, nombre_archivo)
+#definición de la base del usuario
+class UsuarioBase(BaseModel):
+    nombre:Optional[str]=None
+    edad:int
+    domicilio:str    
     
-    print(f"Guardando la fotografia en: {ruta_foto}")
-    with open(ruta_foto, "wb") as buffer:
-        shutil.copyfileobj(fotografia.file, buffer)
+usuarios = [{
+    "id": 0,
+    "nombre": "Homero Simpson",
+    "edad": 40,
+    "domicilio": "Av. Simpre Viva"
+}, {
+    "id": 1,
+    "nombre": "Marge Simpson",
+    "edad": 38,
+    "domicilio": "Av. Simpre Viva"
+}, {
+    "id": 2,
+    "nombre": "Lisa Simpson",
+    "edad": 8,
+    "domicilio": "Av. Simpre Viva"
+}, {
+    "id": 3,
+    "nombre": "Bart Simpson",
+    "edad": 10,
+    "domicilio": "Av. Simpre Viva"
+}]
 
-    # respuesta
-    respuesta = {
+#-----------------------------------Ejercicio Formularios -------------------------------------#
+#peticion POST del formulario
+@app.post("/formulario")
+async def formulario(nombre: str = Form(None),direccion: str = Form(None), es_vip: bool = Form(False),foto: UploadFile = (None)):
+    print("Nombre", nombre)
+    print("Direccion:",direccion)
+    print("VIP:", es_vip)
+    
+    #home_usuario = os.path.expanduser("~") #home usuario
+    home_usuario = os.getcwd() #para obtener el directorio actual
+    ruta_usuarios_vip = os.path.join(home_usuario, "fotos-usuarios-vip")
+    ruta_usuarios = os.path.join(home_usuario, "fotos-usuarios")
+
+    #para saber si el usuario es VIP
+    if es_vip:
+        directorio = ruta_usuarios_vip
+        print("El usuario es VIP. Guardando en la carpeta de usuarios VIP")
+    else:
+        directorio = ruta_usuarios
+        print("El usuario no es VIP. Guardando en la carpeta de usuarios regulares.")
+
+    # para generar un nombre de archivo único
+    nombre_archivo = uuid.uuid4()  # enformato hexadecimal
+    extension_foto = os.path.splitext(foto.filename)[1]  # Extensión del archivo
+    ruta_archivo = os.path.join(directorio, f"{nombre_archivo}{extension_foto}")
+    
+    # se guarda la fotografía
+    with open(ruta_archivo, "wb") as archivo:
+        contenido = await foto.read()
+        archivo.write(contenido)
+
+    # mensaje de respuesta
+    return {
+        "mensaje": "Usuario registrado",
         "nombre": nombre,
         "direccion": direccion,
-        "vip": vip,
-        "ruta_foto": ruta_foto
+        "es_vip": es_vip,
+    }
+
+
+#----------------------------------------------------------------------------------------------#
+
+
+#Form(...) -> operador ellipsis
+@app.post("/fotos")
+async def guarda_foto(titulo:str=Form(None),descripcion:str=Form(...),foto:UploadFile=File(...)):
+    print("Titulo: ", titulo)
+    print("Descripción: ", descripcion)
+    home_usuario = os.path.expanduser("~") #home usuario
+    nombre_archivo = uuid.uuid4() #nombre en formato hexadecimal
+    extension_foto = os.path.splitext(foto.filename)[1]
+    ruta_imagen = f'{home_usuario}/fotos-ejemplo/{nombre_archivo}{extension_foto}'
+    print("Guardando la foto en ", ruta_imagen)
+    with open(ruta_imagen,"wb") as imagen:
+        contenido = await foto.read()
+        imagen.write(contenido)
+
+    respuesta = {
+        "Titulo" : titulo,
+        "Descripción" : descripcion,
+        "Ruta": ruta_imagen
     }
     return respuesta
 
-# la ruta de prueba
+
+# decorator
 @app.get("/")
-def inicio():
-    print("Ruta / invocada")
-    return {"mensaje": "Bienvenido a la API de registro de usuarios"}
+def hola_mundo():
+    print("invocando a ruta /")
+    respuesta = {
+        "mensaje": "hola mundo!"
+    }
+
+    return respuesta
+
+
+@app.get("/usuarios/{id}")
+def usuario_por_id(id: int):
+    print("buscando usuario por id:", id)
+    # simulamos consulta a la base:
+    return usuarios[id]
+
+
+@app.get("/usuarios/{id}/compras/{id_compra}")
+def compras_usuario_por_id(id: int, id_compra: int):
+    print("buscando compra con id:", id_compra, " del usuario con id:", id)
+    # simulamos la consulta
+    compra = {
+        "id_compra": 787,
+        "producto": "TV",
+        "precio": 14000
+    }
+
+    return compra
+
+@app.get("/usuarios")
+def lista_usuarios(*,lote:int=10,pag:int,orden:Optional[str]=None): #parametros de consulta ?lote=10&pag=1
+    print("lote:",lote, " pag:", pag, " orden:", orden)
+    #simulamos la consulta
+    return usuarios
+
+@app.post("/usuarios")
+def guardar_usuario(usuario:UsuarioBase, parametro1:str):
+    print("usuario a guardar:", usuario, ", parametro1:", parametro1)
+    #simulamos guardado en la base.
+    
+    usr_nuevo = {}
+    usr_nuevo["id"] = len(usuarios)
+    usr_nuevo["nombre"] = usuario.nombre
+    usr_nuevo["edad"] = usuario.edad
+    usr_nuevo["domicilio"] = usuario.domicilio
+
+    usuarios.append(usuario)
+
+    return usr_nuevo
+
+@app.put("/usuario/{id}")
+def actualizar_usuario(id:int, usuario:UsuarioBase):
+    #simulamos consulta
+    usr_act = usuarios[id]
+    #simulamos la actualización
+    usr_act["nombre"] = usuario.nombre
+    usr_act["edad"] = usuario.edad
+    usr_act["domicilio"] = usuario.domicilio    
+
+    return usr_act
+    
+@app.delete("/usuario/{id}")
+def borrar_usuario(id:int):
+    #simulamos una consulta
+    if id>=0 and id< len(usuarios):
+        usuario = usuarios[id]
+    else:
+        usuario = None
+    
+    if usuario is not None:
+        usuarios.remove(usuario)
+    
+    return {"status_borrado", "ok"}
